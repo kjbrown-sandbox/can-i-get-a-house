@@ -1,4 +1,4 @@
-:root {
+/* :root {
   --background: #ffffff;
   --foreground: #171717;
 }
@@ -39,4 +39,97 @@ a {
   html {
     color-scheme: dark;
   }
+} */
+:root {
+   --light: rgb(244, 243, 238);
+   --light-grey: hsl(36, 8%, 93%);
+   --grey: hsl(28, 6%, 70%);
+   --dark-grey: hsl(30, 5%, 8%);
+   --dark: hsl(30, 8%, 5%);
+   /* --dark: rgb(42, 38, 35); */
+   /* --dark-grey: rgb(59, 55, 53); */
+   /* --primary: rgb(224, 175, 160); */
+   --primary: rgb(166, 80, 54);
+
+   /* --background: rgb(244, 243, 238);
+   --foreground: rgb(70, 63, 58);
+   --background-contrast: rgb(138, 129, 124);
+   --foreground-contrast: rgb(188, 184, 177);
+   --primary: rgb(224, 175, 160); */
+   --background: var(--light);
+   --background-contrast: var(--light-grey);
+   --neutral: var(--grey);
+   --foreground-contrast: var(--dark-grey);
+   --foreground: var(--dark);
+}
+
+.dark-mode {
+   --background: var(--dark);
+   --background-contrast: var(--dark-grey);
+   --foreground-contrast: var(--light-grey);
+   --foreground: var(--light);
+}
+
+/* .dark-mode * {
+   --background: var(--background);
+   --background-contrast: var(--background-contrast);
+   --foreground-contrast: var(--foreground-contrast);
+   --foreground: var(--foreground);
+} */
+
+* {
+   margin: 0;
+   padding: 0;
+   box-sizing: border-box;
+   font-family: Arial, sans-serif;
+}
+
+body {
+   display: flex;
+   justify-content: center;
+   align-items: center;
+   height: 100vh;
+   background-color: var(--background);
+   color: var(--foreground);
+}
+
+h1 {
+   font-size: 24px;
+   margin-bottom: 20px;
+}
+
+form {
+   display: flex;
+   flex-direction: column;
+}
+
+label {
+   margin: 10px 0 5px;
+   font-size: 14px;
+}
+
+input {
+   padding: 10px;
+   font-size: 16px;
+   border: 1px solid var(--neutral);
+   border-radius: 5px;
+   background-color: var(--background);
+   /* background-color: var(--light); */
+}
+
+button {
+   margin-top: 20px;
+   padding: 10px;
+   background-color: var(--primary);
+   color: var(--light);
+   border: none;
+   border-radius: 5px;
+   cursor: pointer;
+
+   transition: filter 0.3s;
+}
+
+button:hover {
+   /* background-color: var(--dark-grey); */
+   filter: brightness(0.9);
 }
