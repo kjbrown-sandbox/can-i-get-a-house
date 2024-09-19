@@ -175,3 +175,30 @@ a.secondary {
 #result {
    margin-top: 20px;
 }
+
+.page {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  gap: 32px;
+  background-color: aliceblue;
+
+  /* grid-row-start: 2; */
+}
+
+.leftPanel {
+  flex-direction: column;
+  display: flex;
+  flex: 1;
+  background-color: yellow;
+    align-items: center;
+  justify-content: center;
+}
+
+.rightPanel {
+  flex-direction: column;
+  display: flex;
+  flex: 2;
+    align-items: center;
+  justify-content: center;
+} 
