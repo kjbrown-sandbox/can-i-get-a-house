@@ -97,27 +97,100 @@
 
 import React, { useState } from "react";
 import styles from "./page.module.css";
-// import globals from "./globals.css";
 import "./globals.css";
 
 
 export const App: React.FC = () => {
-   return (
-      <div className={styles.page}>
+  const [income, setIncome] = useState<number | string>("");
+  const currentMortgageInterestRate = 0.0631
 
+  const getAffordableHousePrice = () => {
+   if (typeof income !== 'number') {
+      return 0;
+   }
+
+   type Cost = {
+      cost: number;
+      type: 'percentage' | 'fixed';
+   }
+
+   // https://www.ally.com/stories/home/cost-of-owning-a-home/
+   let currentMortgagePrice = 0;
+   const monthlyCosts: Record<string, Cost> = {
+      utilities: { cost: 430, type: 'fixed' },
+      maintenance: { cost: 0.0275, type: 'percentage' },
+      // This is just for Utah
+      propertyTaxes: { cost: 0.0052 / 12, type: 'percentage' },
+      // https://www.nerdwallet.com/article/insurance/average-homeowners-insurance-cost
+      // I guess insurance is kinda complicated? And varies a lot by state
+      insurance: { cost: 1915 / 12, type: 'fixed' },
+      hoa: { cost: 191, type: 'fixed' },
+      // PMI is also complicated, but we'll just take the average percentage of some rates and come back to this
+      // PMI is just a fee you pay until you hit over 20% equity in your home (or maybe 22% ???)
+      pmi: { cost: 0.01 / 12, type: 'percentage' }, 
+      // M = P [ I(1 + I)N ] / [ (1 + I)N − 1]
+      mortgage: { cost: currentMortgagePrice * (currentMortgageInterestRate * (1 + currentMortgageInterestRate) ** 30) / ((1 + currentMortgageInterestRate) ** 30 - 1), type: 'fixed' }
+   }
+
+   while (true) {
+      const totalCost = Object.values(monthlyCosts).reduce((acc, { cost, type }) => {
+         if (type === 'percentage') {
+            return acc + (cost * currentMortgagePrice);
+         } else {
+            return acc + cost;
+         }
+      }, 0);
+
+      if (totalCost > income * 0.3) {
+         return currentMortgagePrice;
+      } else {
+         currentMortgagePrice += 100
+         monthlyCosts.mortgage.cost = currentMortgagePrice * (currentMortgageInterestRate * (1 + currentMortgageInterestRate) ** 30) / ((1 + currentMortgageInterestRate) ** 30 - 1)
+      }
+   }
+}
+
+console.log('getting price')
+console.log(getAffordableHousePrice())
+
+  const handleIncomeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value === "" || !isNaN(Number(value))) {
+      setIncome(Number(value));
+    }
+  };
+
+  return (
+    <div className={styles.page}>
       <div className={styles.leftPanel}>
-         <div>
-            I am in a box
-         </div>
+        <input
+          type="text"
+          placeholder="Enter your income"
+          value={income}
+          onChange={handleIncomeChange}
+        />
       </div>
       <div className={styles.rightPanel}>
-         <div>
-         This is a second box
-         </div>
-         </div>
+        <div>This is a second box</div>
       </div>
-   )
-   
+    </div>
+  );
 };
-
 export default App;
+
+
+
+/*
+A house should be 30% of your gross income but should include all costs associated with the house.
+Costs include:
+- utilities
+- maintenance
+- property taxes
+- insurance
+- mortgage (obviously)
+- HOA fees
+- PMI
+
+We can add in different methods to be more or less conservative (like 30% of net income or even a 15-year mortgage)
+or other rules
+*/
