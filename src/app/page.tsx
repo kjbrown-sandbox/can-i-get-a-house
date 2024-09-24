@@ -100,13 +100,35 @@ import styles from "./page.module.css";
 import "./globals.css";
 
 
+const currentMortgageInterestRate = 0.0631
+const calculatePMI = (homePrice: number, downPayment: number, monthlyCost: number) => {
+   const loanAmount = homePrice - downPayment;
+   const pmiThreshold = homePrice * 0.78;
+   const pmiMonthlyCost = loanAmount * 0.015 / 12;
+
+   let currentBalance = loanAmount;
+   let months = 0;
+
+   while (currentBalance > pmiThreshold) {
+      currentBalance -= monthlyCost - (currentBalance * currentMortgageInterestRate / 12);
+      months++;
+   }
+
+   return {
+      months,
+      cost: months * pmiMonthlyCost
+   }
+}
+
 export const App: React.FC = () => {
   const [income, setIncome] = useState<number | string>("");
-  const currentMortgageInterestRate = 0.0631
 
-  const getAffordableHousePrice = () => {
+  const getAffordableHousePrice = (): { homePrice: number, monthly: number } => {
    if (typeof income !== 'number') {
-      return 0;
+      return {
+         homePrice: 0,
+         monthly: 0
+      }
    }
 
    type Cost = {
@@ -142,7 +164,10 @@ export const App: React.FC = () => {
       }, 0);
 
       if (totalCost > income * 0.3) {
-         return currentMortgagePrice;
+         return {
+            homePrice: currentMortgagePrice,
+            monthly: totalCost
+         };
       } else {
          currentMortgagePrice += 100
          monthlyCosts.mortgage.cost = currentMortgagePrice * (currentMortgageInterestRate * (1 + currentMortgageInterestRate) ** 30) / ((1 + currentMortgageInterestRate) ** 30 - 1)
@@ -171,8 +196,10 @@ console.log(getAffordableHousePrice())
         />
       </div>
       <div className={styles.rightPanel}>
-        <div>This is a second box</div>
-      </div>
+        <p>{getAffordableHousePrice().homePrice}</p>
+         <p>At 10% down, you would pay ${calculatePMI(getAffordableHousePrice().homePrice, getAffordableHousePrice().homePrice * 0.1, getAffordableHousePrice().monthly).cost} in PMI
+         over the course of {calculatePMI(getAffordableHousePrice().homePrice, getAffordableHousePrice().homePrice * 0.1, getAffordableHousePrice().monthly).months} months</p>
+        </div>
     </div>
   );
 };
