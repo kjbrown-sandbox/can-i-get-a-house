@@ -99,113 +99,159 @@ import React, { useState } from "react";
 import styles from "./page.module.css";
 import "./globals.css";
 
-
-const currentMortgageInterestRate = 0.0631
-const calculatePMI = (homePrice: number, downPayment: number, monthlyCost: number) => {
+const currentMortgageInterestRate = 0.0631;
+const calculatePMI = (
+   homePrice: number,
+   downPayment: number,
+   monthlyCost: number
+) => {
    const loanAmount = homePrice - downPayment;
    const pmiThreshold = homePrice * 0.78;
-   const pmiMonthlyCost = loanAmount * 0.015 / 12;
+   let pmiMonthlyCost = (loanAmount * 0.015) / 12;
 
    let currentBalance = loanAmount;
    let months = 0;
-
+   let totalPMICost = 0;
    while (currentBalance > pmiThreshold) {
-      currentBalance -= monthlyCost - (currentBalance * currentMortgageInterestRate / 12);
+      const interest = (currentBalance * currentMortgageInterestRate) / 12;
+      currentBalance += interest;
+      currentBalance -= monthlyCost;
+      totalPMICost += pmiMonthlyCost;
+      pmiMonthlyCost = (currentBalance * 0.015) / 12;
       months++;
    }
 
    return {
       months,
-      cost: months * pmiMonthlyCost
-   }
-}
+      cost: months * pmiMonthlyCost,
+      totalPMICost,
+   };
+};
+
+const getMonthlyMortgagePayment = (mortgage: number, interestRate: number) => {
+   return (
+      (mortgage * interestRate) / 12 / (1 - (1 + interestRate / 12) ** -360)
+   );
+};
 
 export const App: React.FC = () => {
-  const [income, setIncome] = useState<number | string>("");
+   const [income, setIncome] = useState<number | string>("");
 
-  const getAffordableHousePrice = (): { homePrice: number, monthly: number } => {
-   if (typeof income !== 'number') {
-      return {
-         homePrice: 0,
-         monthly: 0
-      }
-   }
-
-   type Cost = {
-      cost: number;
-      type: 'percentage' | 'fixed';
-   }
-
-   // https://www.ally.com/stories/home/cost-of-owning-a-home/
-   let currentMortgagePrice = 0;
-   const monthlyCosts: Record<string, Cost> = {
-      utilities: { cost: 430, type: 'fixed' },
-      maintenance: { cost: 0.0275, type: 'percentage' },
-      // This is just for Utah
-      propertyTaxes: { cost: 0.0052 / 12, type: 'percentage' },
-      // https://www.nerdwallet.com/article/insurance/average-homeowners-insurance-cost
-      // I guess insurance is kinda complicated? And varies a lot by state
-      insurance: { cost: 1915 / 12, type: 'fixed' },
-      hoa: { cost: 191, type: 'fixed' },
-      // PMI is also complicated, but we'll just take the average percentage of some rates and come back to this
-      // PMI is just a fee you pay until you hit over 20% equity in your home (or maybe 22% ???)
-      pmi: { cost: 0.01 / 12, type: 'percentage' }, 
-      // M = P [ I(1 + I)N ] / [ (1 + I)N − 1]
-      mortgage: { cost: currentMortgagePrice * (currentMortgageInterestRate * (1 + currentMortgageInterestRate) ** 30) / ((1 + currentMortgageInterestRate) ** 30 - 1), type: 'fixed' }
-   }
-
-   while (true) {
-      const totalCost = Object.values(monthlyCosts).reduce((acc, { cost, type }) => {
-         if (type === 'percentage') {
-            return acc + (cost * currentMortgagePrice);
-         } else {
-            return acc + cost;
-         }
-      }, 0);
-
-      if (totalCost > income * 0.3) {
+   const getAffordableHousePrice = (): {
+      homePrice: number;
+      monthly: number;
+   } => {
+      if (typeof income !== "number") {
          return {
-            homePrice: currentMortgagePrice,
-            monthly: totalCost
+            homePrice: 0,
+            monthly: 0,
          };
-      } else {
-         currentMortgagePrice += 100
-         monthlyCosts.mortgage.cost = currentMortgagePrice * (currentMortgageInterestRate * (1 + currentMortgageInterestRate) ** 30) / ((1 + currentMortgageInterestRate) ** 30 - 1)
       }
-   }
-}
 
-console.log('getting price')
-console.log(getAffordableHousePrice())
+      type Cost = {
+         cost: number;
+         type: "percentage" | "fixed";
+      };
 
-  const handleIncomeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (value === "" || !isNaN(Number(value))) {
-      setIncome(Number(value));
-    }
-  };
+      // https://www.ally.com/stories/home/cost-of-owning-a-home/
+      let currentMortgagePrice = 0;
+      const monthlyCosts: Record<string, Cost> = {
+         utilities: { cost: 430, type: "fixed" },
+         maintenance: { cost: 0.0275 / 12, type: "percentage" },
+         // This is just for Utah
+         propertyTaxes: { cost: 0.0052 / 12, type: "percentage" },
+         // https://www.nerdwallet.com/article/insurance/average-homeowners-insurance-cost
+         // I guess insurance is kinda complicated? And varies a lot by state
+         insurance: { cost: 1915 / 12, type: "fixed" },
+         hoa: { cost: 191, type: "fixed" },
+         // PMI is also complicated, but we'll just take the average percentage of some rates and come back to this
+         // PMI is just a fee you pay until you hit over 20% equity in your home (or maybe 22% ???)
+         pmi: { cost: 0.01 / 12, type: "percentage" },
+         // M = P [ I(1 + I)N ] / [ (1 + I)N − 1]
+         mortgage: {
+            cost: getMonthlyMortgagePayment(
+               currentMortgagePrice,
+               currentMortgageInterestRate
+            ),
+            type: "fixed",
+         },
+      };
 
-  return (
-    <div className={styles.page}>
-      <div className={styles.leftPanel}>
-        <input
-          type="text"
-          placeholder="Enter your income"
-          value={income}
-          onChange={handleIncomeChange}
-        />
+      const mortgageDelta = income / 100;
+      while (true) {
+         const totalCost = Object.values(monthlyCosts).reduce(
+            (acc, { cost, type }) => {
+               if (type === "percentage") {
+                  return acc + cost * currentMortgagePrice;
+               } else {
+                  return acc + cost;
+               }
+            },
+            0
+         );
+
+         if (totalCost > (income * 0.3) / 12) {
+            // console.log(monthlyCosts);
+            return {
+               homePrice: currentMortgagePrice,
+               monthly: totalCost,
+            };
+         } else {
+            currentMortgagePrice += mortgageDelta;
+            monthlyCosts.mortgage.cost = getMonthlyMortgagePayment(
+               currentMortgagePrice,
+               currentMortgageInterestRate
+            );
+         }
+      }
+   };
+
+   console.log("getting price");
+   console.log(getAffordableHousePrice());
+
+   const handleIncomeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      if (value === "") {
+         setIncome(value);
+      } else if (!isNaN(Number(value))) {
+         setIncome(Math.min(Number(value), 10000000));
+      }
+   };
+
+   let { homePrice, monthly } = getAffordableHousePrice();
+   homePrice = Math.round(homePrice);
+   monthly = Math.round(monthly);
+
+   let {
+      cost: pmiCost,
+      months,
+      totalPMICost,
+   } = calculatePMI(homePrice, homePrice * 0.1, monthly);
+   pmiCost = Math.round(pmiCost);
+   totalPMICost = Math.round(totalPMICost);
+
+   return (
+      <div className={styles.page}>
+         <div className={styles.leftPanel}>
+            <input
+               type="text"
+               placeholder="Enter your income"
+               value={income}
+               onChange={handleIncomeChange}
+            />
+         </div>
+         <div className={styles.rightPanel}>
+            <p>{homePrice}</p>
+            <p>
+               At 10% down, you would pay ${pmiCost} in PMI over the course of{" "}
+               {months} months with an average of $
+               {Math.round(totalPMICost / months)} per month.
+            </p>
+         </div>
       </div>
-      <div className={styles.rightPanel}>
-        <p>{getAffordableHousePrice().homePrice}</p>
-         <p>At 10% down, you would pay ${calculatePMI(getAffordableHousePrice().homePrice, getAffordableHousePrice().homePrice * 0.1, getAffordableHousePrice().monthly).cost} in PMI
-         over the course of {calculatePMI(getAffordableHousePrice().homePrice, getAffordableHousePrice().homePrice * 0.1, getAffordableHousePrice().monthly).months} months</p>
-        </div>
-    </div>
-  );
+   );
 };
 export default App;
-
-
 
 /*
 A house should be 30% of your gross income but should include all costs associated with the house.
