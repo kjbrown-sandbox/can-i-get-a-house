@@ -140,11 +140,13 @@ export const App: React.FC = () => {
    const getAffordableHousePrice = (): {
       homePrice: number;
       monthly: number;
+      allCosts: Record<string, { cost: number; type: "percentage" | "fixed" }>;
    } => {
       if (typeof income !== "number") {
          return {
             homePrice: 0,
             monthly: 0,
+            allCosts: {},
          };
       }
 
@@ -157,7 +159,7 @@ export const App: React.FC = () => {
       let currentMortgagePrice = 0;
       const monthlyCosts: Record<string, Cost> = {
          utilities: { cost: 430, type: "fixed" },
-         maintenance: { cost: 0.0275 / 12, type: "percentage" },
+         maintenance: { cost: 0.02 / 12, type: "percentage" },
          // This is just for Utah
          propertyTaxes: { cost: 0.0052 / 12, type: "percentage" },
          // https://www.nerdwallet.com/article/insurance/average-homeowners-insurance-cost
@@ -166,7 +168,6 @@ export const App: React.FC = () => {
          hoa: { cost: 191, type: "fixed" },
          // PMI is also complicated, but we'll just take the average percentage of some rates and come back to this
          // PMI is just a fee you pay until you hit over 20% equity in your home (or maybe 22% ???)
-         pmi: { cost: 0.01 / 12, type: "percentage" },
          // M = P [ I(1 + I)N ] / [ (1 + I)N − 1]
          mortgage: {
             cost: getMonthlyMortgagePayment(
@@ -195,6 +196,7 @@ export const App: React.FC = () => {
             return {
                homePrice: currentMortgagePrice,
                monthly: totalCost,
+               allCosts: monthlyCosts,
             };
          } else {
             currentMortgagePrice += mortgageDelta;
@@ -218,7 +220,7 @@ export const App: React.FC = () => {
       }
    };
 
-   let { homePrice, monthly } = getAffordableHousePrice();
+   let { homePrice, monthly, allCosts } = getAffordableHousePrice();
    homePrice = Math.round(homePrice);
    monthly = Math.round(monthly);
 
@@ -245,8 +247,25 @@ export const App: React.FC = () => {
             <p>
                At 10% down, you would pay ${pmiCost} in PMI over the course of{" "}
                {months} months with an average of $
-               {Math.round(totalPMICost / months)} per month.
+               {totalPMICost ? Math.round(totalPMICost / months) : 0} per month.
             </p>
+            <br/>
+            <p>
+               Here is your monthly breakdown of costs:
+            </p>
+            {Object.keys(allCosts).map((key) => {
+               let keyCost = 0;
+               if (allCosts[key].type === "percentage") {
+                  keyCost = Math.round(allCosts[key].cost * homePrice);
+               } else {
+                  keyCost = Math.round(allCosts[key].cost);
+               }
+               return (
+                  <p key={key}>
+                     {key}: ${keyCost}
+                  </p>
+               );
+            })}
          </div>
       </div>
    );
@@ -266,4 +285,15 @@ Costs include:
 
 We can add in different methods to be more or less conservative (like 30% of net income or even a 15-year mortgage)
 or other rules
+
+
+The reason PMI length in months to repay goes up as mortgage cost goes up is because,
+as mortgage cost goes up, the relative fixed costs of the house go down. (A fixed $400 cost
+for utilities means a lot less when your mortgage is $2000 than when it's $1000.) Why does
+that matter? Well, imagine there was no interest. If you pay 0% down, then you'd need 20% of
+the time to get to 20% equity. But when you add in interest, the beginning time is heavily
+skewed towards only paying down interest--which means it takes longer than 20% of the time to
+get to 20% equity. As interest starts playing a bigger factor, the fixed costs have less weight,
+so you spend more time just paying interest, which means you spend more time paying PMI because
+it takes longer to get to 20% equity.
 */
