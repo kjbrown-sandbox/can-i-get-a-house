@@ -98,129 +98,37 @@
 import React, { useState } from "react";
 import styles from "./page.module.css";
 import "./globals.css";
+import { calculatePMI, getAffordableHousePrice, UserInputs } from "@/utils";
 
 const currentMortgageInterestRate = 0.0631;
-const calculatePMI = (
-   homePrice: number,
-   downPayment: number,
-   monthlyCost: number
-) => {
-   const loanAmount = homePrice - downPayment;
-   const pmiThreshold = homePrice * 0.78;
-   let pmiMonthlyCost = (loanAmount * 0.015) / 12;
-
-   let currentBalance = loanAmount;
-   let months = 0;
-   let totalPMICost = 0;
-   while (currentBalance > pmiThreshold) {
-      const interest = (currentBalance * currentMortgageInterestRate) / 12;
-      currentBalance += interest;
-      currentBalance -= monthlyCost;
-      totalPMICost += pmiMonthlyCost;
-      pmiMonthlyCost = (currentBalance * 0.015) / 12;
-      months++;
-   }
-
-   return {
-      months,
-      cost: months * pmiMonthlyCost,
-      totalPMICost,
-   };
-};
-
-const getMonthlyMortgagePayment = (mortgage: number, interestRate: number) => {
-   return (
-      (mortgage * interestRate) / 12 / (1 - (1 + interestRate / 12) ** -360)
-   );
-};
+const monthlyInterestRate = currentMortgageInterestRate / 12;
 
 export const App: React.FC = () => {
-   const [income, setIncome] = useState<number | string>("");
+   const [userInputs, setUserInputs] = useState<UserInputs>({
+      income: "",
+      homePrice: "",
+      downPayment: "",
+   });
 
-   const getAffordableHousePrice = (): {
-      homePrice: number;
-      monthly: number;
-      allCosts: Record<string, { cost: number; type: "percentage" | "fixed" }>;
-   } => {
-      if (typeof income !== "number") {
-         return {
-            homePrice: 0,
-            monthly: 0,
-            allCosts: {},
-         };
-      }
-
-      type Cost = {
-         cost: number;
-         type: "percentage" | "fixed";
-      };
-
-      // https://www.ally.com/stories/home/cost-of-owning-a-home/
-      let currentMortgagePrice = 0;
-      const monthlyCosts: Record<string, Cost> = {
-         utilities: { cost: 430, type: "fixed" },
-         maintenance: { cost: 0.02 / 12, type: "percentage" },
-         // This is just for Utah
-         propertyTaxes: { cost: 0.0052 / 12, type: "percentage" },
-         // https://www.nerdwallet.com/article/insurance/average-homeowners-insurance-cost
-         // I guess insurance is kinda complicated? And varies a lot by state
-         insurance: { cost: 1915 / 12, type: "fixed" },
-         hoa: { cost: 191, type: "fixed" },
-         // PMI is also complicated, but we'll just take the average percentage of some rates and come back to this
-         // PMI is just a fee you pay until you hit over 20% equity in your home (or maybe 22% ???)
-         // M = P [ I(1 + I)N ] / [ (1 + I)N − 1]
-         mortgage: {
-            cost: getMonthlyMortgagePayment(
-               currentMortgagePrice,
-               currentMortgageInterestRate
-            ),
-            type: "fixed",
-         },
-      };
-
-      const mortgageDelta = income / 100;
-      while (true) {
-         const totalCost = Object.values(monthlyCosts).reduce(
-            (acc, { cost, type }) => {
-               if (type === "percentage") {
-                  return acc + cost * currentMortgagePrice;
-               } else {
-                  return acc + cost;
-               }
-            },
-            0
-         );
-
-         if (totalCost > (income * 0.3) / 12) {
-            // console.log(monthlyCosts);
-            return {
-               homePrice: currentMortgagePrice,
-               monthly: totalCost,
-               allCosts: monthlyCosts,
-            };
-         } else {
-            currentMortgagePrice += mortgageDelta;
-            monthlyCosts.mortgage.cost = getMonthlyMortgagePayment(
-               currentMortgagePrice,
-               currentMortgageInterestRate
-            );
-         }
-      }
-   };
-
-   console.log("getting price");
-   console.log(getAffordableHousePrice());
-
-   const handleIncomeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>, name: keyof UserInputs) => {
       const value = e.target.value;
       if (value === "") {
-         setIncome(value);
+         setUserInputs({ ...userInputs, [name]: value });
       } else if (!isNaN(Number(value))) {
-         setIncome(Math.min(Number(value), 10000000));
+         setUserInputs({ ...userInputs, [name]: Math.min(Number(value), 10000000) });
       }
-   };
+   }
 
-   let { homePrice, monthly, allCosts } = getAffordableHousePrice();
+   const handleDownPaymentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      if (value === "") {
+         setUserInputs({ ...userInputs, downPayment: value });
+      } else if (!isNaN(Number(value))) {
+         setUserInputs({ ...userInputs, downPayment: value });
+      }
+   }
+
+   let { homePrice, monthly, allCosts } = getAffordableHousePrice(userInputs.income, monthlyInterestRate );
    homePrice = Math.round(homePrice);
    monthly = Math.round(monthly);
 
@@ -228,7 +136,7 @@ export const App: React.FC = () => {
       cost: pmiCost,
       months,
       totalPMICost,
-   } = calculatePMI(homePrice, homePrice * 0.1, monthly);
+   } = calculatePMI(homePrice, homePrice * userInputs.downPayment / 100, monthly, monthlyInterestRate);
    pmiCost = Math.round(pmiCost);
    totalPMICost = Math.round(totalPMICost);
 
@@ -238,14 +146,26 @@ export const App: React.FC = () => {
             <input
                type="text"
                placeholder="Enter your income"
-               value={income}
-               onChange={handleIncomeChange}
+               value={userInputs.income}
+               onChange={(e) => handleInputChange(e, "income")}
+            />
+            <input
+               type='text'
+               placeholder='Enter your home price'
+               value={userInputs.homePrice}
+               onChange={(e) => handleInputChange(e, "homePrice")}
+            />
+            <input
+               type='text'
+               placeholder='Enter your down payment'
+               value={userInputs.downPayment}
+               onChange={handleDownPaymentChange}
             />
          </div>
          <div className={styles.rightPanel}>
             <p>{homePrice}</p>
             <p>
-               At 10% down, you would pay ${pmiCost} in PMI over the course of{" "}
+               At {userInputs.downPayment}% down, you would pay ${pmiCost} in PMI over the course of{" "}
                {months} months with an average of $
                {totalPMICost ? Math.round(totalPMICost / months) : 0} per month.
             </p>
@@ -296,4 +216,22 @@ skewed towards only paying down interest--which means it takes longer than 20% o
 get to 20% equity. As interest starts playing a bigger factor, the fixed costs have less weight,
 so you spend more time just paying interest, which means you spend more time paying PMI because
 it takes longer to get to 20% equity.
+*/
+
+
+/* Things left to do:
+- Get the calculator to work for home price
+   - If no other inputs are entered, then shows how much income you need to afford it (maybe
+     with a slider for down payment)
+   - If with down payment, then shows how much income you need to afford it
+   - If with income, then shows if it's affordable and, if not, how much more income you need or
+     how much of a down payment you need
+      - Could also show how easily it can be afforded if it is affordable
+
+V1:
+- 
+- Hmmmmm. I made need a better way to separate the app into version--like v1, v2
+
+
+I think I need this in a google doc or something. Comments are not so good at recording these things.
 */
