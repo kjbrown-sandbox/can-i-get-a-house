@@ -98,7 +98,7 @@
 import React, { useState } from "react";
 import styles from "./page.module.css";
 import "./globals.css";
-import { calculatePMI, getAffordableHousePrice, UserInputs } from "@/utils";
+import { calculatePMI, getAffordableHousePrice, getSalaryNeeded, UserInputs } from "@/utils";
 
 const currentMortgageInterestRate = 0.0631;
 const monthlyInterestRate = currentMortgageInterestRate / 12;
@@ -163,7 +163,7 @@ export const App: React.FC = () => {
             />
          </div>
          <div className={styles.rightPanel}>
-            <p>{homePrice}</p>
+            {userInputs.income && (<><p>{homePrice}</p>
             <p>
                At {userInputs.downPayment}% down, you would pay ${pmiCost} in PMI over the course of{" "}
                {months} months with an average of $
@@ -186,6 +186,14 @@ export const App: React.FC = () => {
                   </p>
                );
             })}
+         </>)}
+            {typeof userInputs.homePrice === 'number' && (
+               <>
+                  <p>For a house price of {userInputs.homePrice}, you need to make ${getSalaryNeeded(userInputs.homePrice as number, userInputs.downPayment as number / 100 * (userInputs.homePrice as number), monthlyInterestRate)}</p>
+                  <p>or ${Math.round(getSalaryNeeded(userInputs.homePrice as number, userInputs.downPayment as number / 100 * (userInputs.homePrice as number), monthlyInterestRate) / 12)} per month.</p>
+                  <p>Your monthly housing cost is ${getSalaryNeeded(userInputs.homePrice as number, userInputs.downPayment as number / 100 * (userInputs.homePrice as number), monthlyInterestRate) / 12 * 0.3}</p>
+               </>
+            )}
          </div>
       </div>
    );

@@ -4,6 +4,11 @@ export type UserInputs = {
     downPayment: string | number;
 };
 
+type Cost = {
+         cost: number;
+         type: "percentage" | "fixed";
+      };
+
 export const calculatePMI = (
    homePrice: number,
    downPayment: number,
@@ -52,10 +57,7 @@ export const getAffordableHousePrice = (income: string | number, monthlyInterest
          };
       }
 
-      type Cost = {
-         cost: number;
-         type: "percentage" | "fixed";
-      };
+      
 
       // https://www.ally.com/stories/home/cost-of-owning-a-home/
       let currentMortgagePrice = 0;
@@ -109,3 +111,37 @@ export const getAffordableHousePrice = (income: string | number, monthlyInterest
          }
       }
    };
+
+export const getSalaryNeeded = (homePrice: number, downPayment: number, monthlyInterestRate: number) => {
+    const loanAmount = homePrice - downPayment;
+
+    console.log('loanAmount', loanAmount);
+    // const monthlyCost = getMonthlyMortgagePayment(loanAmount, monthlyInterestRate);
+    const monthlyCosts: Record<string, Cost> = {
+         utilities: { cost: 430, type: "fixed" },
+         propertyTaxes: { cost: 0.0052 / 12, type: "percentage" },
+         insurance: { cost: 1915 / 12, type: "fixed" },
+         mortgage: {
+            cost: getMonthlyMortgagePayment(
+                loanAmount,
+                monthlyInterestRate
+            ),
+            type: "fixed",
+         },
+      };
+      console.log('monthlyCosts', monthlyCosts);
+
+      const totalCost = Object.values(monthlyCosts).reduce(
+            (acc, { cost, type }) => {
+               if (type === "percentage") {
+                  return acc + cost * loanAmount;
+               } else {
+                  return acc + cost;
+               }
+            },
+            0
+         );
+
+    console.log('totalCost', totalCost);
+    return Math.round(totalCost * 12 / 0.3);
+}; 
